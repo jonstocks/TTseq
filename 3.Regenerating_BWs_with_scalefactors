@@ -1,0 +1,144 @@
+
+
+###########
+
+Rescale bigwigs
+
+####  1.5472687  0.8763560  1.2698893  1.9628579  0.6354695  0.5025626  1.2364784  0.7836489 
+
+
+qsub ~/scripts/coverage_scale.sh Ctrl_NHS_A 0.6463001545885
+qsub ~/scripts/coverage_scale.sh Ctrl_NHS_B 1.1410887812715
+qsub ~/scripts/coverage_scale.sh Ctrl_15_A 0.7874702149234
+qsub ~/scripts/coverage_scale.sh Ctrl_15_B 0.5094612299749
+qsub ~/scripts/coverage_scale.sh siU_NHS_A 1.5736396475361
+qsub ~/scripts/coverage_scale.sh siU_NHS_B 1.9898018674688
+qsub ~/scripts/coverage_scale.sh siU_15_A 0.8087484585254
+qsub ~/scripts/coverage_scale.sh siU_15_B 1.2760816738210
+
+
+staging
+
+cd /exports/igmm/datastore/ftp/secret/38883888/jon/
+mkdir HS_TT_HK_scale
+cd HS_TT_HK_scale/
+
+cp /exports/igmm/eddie/gilbert-lab/jstocks/TT_HS_July_23_repeat/fq/*bw .
+
+chmod 755 *.bw
+
+for f in *.bw; do echo "track type=bigWig name="\""$f"\"" description="\""$f"\"" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/U_repeat/$f";done
+
+track type=bigWig name="Ctrl_15_A.0.7874702149234.scaled.20.bw" description="Ctrl_15_A.0.7874702149234.scaled.20.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/U_repeat/Ctrl_15_A.0.7874702149234.scaled.20.bw
+track type=bigWig name="Ctrl_15_B.0.5094612299749.scaled.20.bw" description="Ctrl_15_B.0.5094612299749.scaled.20.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/U_repeat/Ctrl_15_B.0.5094612299749.scaled.20.bw
+track type=bigWig name="Ctrl_NHS_A.0.6463001545885.scaled.20.bw" description="Ctrl_NHS_A.0.6463001545885.scaled.20.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/U_repeat/Ctrl_NHS_A.0.6463001545885.scaled.20.bw
+track type=bigWig name="Ctrl_NHS_B.1.1410887812715.scaled.20.bw" description="Ctrl_NHS_B.1.1410887812715.scaled.20.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/U_repeat/Ctrl_NHS_B.1.1410887812715.scaled.20.bw
+track type=bigWig name="siU_15_A.0.8087484585254.scaled.20.bw" description="siU_15_A.0.8087484585254.scaled.20.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/U_repeat/siU_15_A.0.8087484585254.scaled.20.bw
+track type=bigWig name="siU_15_B.1.2760816738210.scaled.20.bw" description="siU_15_B.1.2760816738210.scaled.20.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/U_repeat/siU_15_B.1.2760816738210.scaled.20.bw
+track type=bigWig name="siU_NHS_A.1.5736396475361.scaled.20.bw" description="siU_NHS_A.1.5736396475361.scaled.20.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/U_repeat/siU_NHS_A.1.5736396475361.scaled.20.bw
+track type=bigWig name="siU_NHS_B.1.9898018674688.scaled.20.bw" description="siU_NHS_B.1.9898018674688.scaled.20.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/U_repeat/siU_NHS_B.1.9898018674688.scaled.20.bw
+
+
+
+
+
+
+#####
+
+C15vCNHS
+1829 up
+585 down
+
+KDvKDNHS
+1509 up
+752 down
+
+KDNHSvCNHS
+93 up
+236 down
+
+KDvCHS
+70 up
+522 down
+
+
+
+
+
+
+
+
+
+
+###########
+
+coverage_scale_strand.sh
+
+#!/bin/bash -f
+#$ -S /bin/bash
+#$ -cwd
+#$ -l h_vmem=48g
+#$ -l h_rt=24:00:00
+#
+. /etc/profile.d/modules.sh
+MODULEPATH=$MODULEPATH:/exports/igmm/software/etc/el7/modules
+
+module load igmm/apps/bowtie/2.2.6
+module load igmm/apps/samtools/1.6
+module load igmm/apps/BEDTools/2.25.0
+module load igmm/libs/libpng/1.6.18
+module load igmm/apps/ucsc/v326
+module load igmm/apps/python/3.5.2
+
+echo $1 $2
+
+bamCoverage -bl hg38-blacklist.v2.bed -p 4 --filterRNAstrand forward --binSize 20 --scaleFactor=$2 -b $1.sorted.bam -o $1.20.fwd.bw
+bamCoverage -bl hg38-blacklist.v2.bed -p 4 --filterRNAstrand reverse --binSize 20 --scaleFactor=$2 -b $1.sorted.bam -o $1.20.rv.bw
+
+
+qsub ~/scripts/coverage_scale_strand.sh Ctrl_NHS_A 1.5472687
+qsub ~/scripts/coverage_scale_strand.sh Ctrl_NHS_B 0.8763560
+qsub ~/scripts/coverage_scale_strand.sh Ctrl_15_A 1.2698893
+qsub ~/scripts/coverage_scale_strand.sh Ctrl_15_B 1.9628579
+qsub ~/scripts/coverage_scale_strand.sh siU_NHS_A 0.6354695
+qsub ~/scripts/coverage_scale_strand.sh siU_NHS_B 0.5025626
+qsub ~/scripts/coverage_scale_strand.sh siU_15_A 1.2364784
+qsub ~/scripts/coverage_scale_strand.sh siU_15_B 0.7836489
+
+for f in *.bw; do echo "track type=bigWig name="\""$f"\"" description="\""$f"\"" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/HS_TT_scale_strand/$f";done
+
+
+track type=bigWig name="Ctrl_15_A.20.fwd.bw" description="Ctrl_15_A.20.fwd.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/HS_TT_scale_strand/Ctrl_15_A.20.fwd.bw
+track type=bigWig name="Ctrl_15_A.20.rv.bw" description="Ctrl_15_A.20.rv.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/HS_TT_scale_strand/Ctrl_15_A.20.rv.bw
+track type=bigWig name="Ctrl_15_B.20.fwd.bw" description="Ctrl_15_B.20.fwd.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/HS_TT_scale_strand/Ctrl_15_B.20.fwd.bw
+track type=bigWig name="Ctrl_15_B.20.rv.bw" description="Ctrl_15_B.20.rv.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/HS_TT_scale_strand/Ctrl_15_B.20.rv.bw
+track type=bigWig name="Ctrl_NHS_A.20.fwd.bw" description="Ctrl_NHS_A.20.fwd.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/HS_TT_scale_strand/Ctrl_NHS_A.20.fwd.bw
+track type=bigWig name="Ctrl_NHS_A.20.rv.bw" description="Ctrl_NHS_A.20.rv.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/HS_TT_scale_strand/Ctrl_NHS_A.20.rv.bw
+track type=bigWig name="Ctrl_NHS_B.20.fwd.bw" description="Ctrl_NHS_B.20.fwd.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/HS_TT_scale_strand/Ctrl_NHS_B.20.fwd.bw
+track type=bigWig name="Ctrl_NHS_B.20.rv.bw" description="Ctrl_NHS_B.20.rv.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/HS_TT_scale_strand/Ctrl_NHS_B.20.rv.bw
+track type=bigWig name="siU_15_A.20.fwd.bw" description="siU_15_A.20.fwd.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/HS_TT_scale_strand/siU_15_A.20.fwd.bw
+track type=bigWig name="siU_15_A.20.rv.bw" description="siU_15_A.20.rv.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/HS_TT_scale_strand/siU_15_A.20.rv.bw
+track type=bigWig name="siU_15_B.20.fwd.bw" description="siU_15_B.20.fwd.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/HS_TT_scale_strand/siU_15_B.20.fwd.bw
+track type=bigWig name="siU_15_B.20.rv.bw" description="siU_15_B.20.rv.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/HS_TT_scale_strand/siU_15_B.20.rv.bw
+track type=bigWig name="siU_NHS_A.20.fwd.bw" description="siU_NHS_A.20.fwd.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/HS_TT_scale_strand/siU_NHS_A.20.fwd.bw
+track type=bigWig name="siU_NHS_A.20.rv.bw" description="siU_NHS_A.20.rv.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/HS_TT_scale_strand/siU_NHS_A.20.rv.bw
+track type=bigWig name="siU_NHS_B.20.fwd.bw" description="siU_NHS_B.20.fwd.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/HS_TT_scale_strand/siU_NHS_B.20.fwd.bw
+track type=bigWig name="siU_NHS_B.20.rv.bw" description="siU_NHS_B.20.rv.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/HS_TT_scale_strand/siU_NHS_B.20.rv.bw
+
+
+
+# Ctrl_NHS_A Ctrl_NHS_B  Ctrl_15_A  Ctrl_15_B  Ctrl_30_A  Ctrl_30_B  siU_NHS_A  siU_NHS_B   siU_15_A   siU_15_B 
+#1.4731199  0.8465992  1.3817386  2.1568107  1.8399081  0.8304221  0.6596624  0.5814240  1.2761281  0.8602400 
+#siU_30_A   siU_30_B 
+#1.1657133  0.3546177 
+
+qsub ~/scripts/coverage_scale_strand.sh Ctrl_NHS_A 0.6788317
+qsub ~/scripts/coverage_scale_strand.sh Ctrl_NHS_B 1.1811965
+qsub ~/scripts/coverage_scale_strand.sh Ctrl_15_A 0.723726
+qsub ~/scripts/coverage_scale_strand.sh Ctrl_15_B 0.4636476
+qsub ~/scripts/coverage_scale_strand.sh Ctrl_30_A 0.5435054
+qsub ~/scripts/coverage_scale_strand.sh Ctrl_30_B 1.2042068
+
+
+
+for f in *.bw; do echo "track type=bigWig name="\""$f"\"" description="\""$f"\"" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/HS_avg/$f";done
