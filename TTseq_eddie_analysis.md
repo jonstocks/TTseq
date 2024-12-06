@@ -1,0 +1,220 @@
+## log on, copy data and join lanes
+
+```bash
+ssh -Y s2091288@eddie.ecdf.ed.ac.uk
+
+qlogin -q staging
+
+cd /exports/igmm/eddie/gilbert-lab/jstocks/HS_TTseq_july/
+
+rsync -r /exports/igmm/datastore/gilbert-lab/Jon/01.RawData/ .
+```
+
+in each folder combine to single file with sample name
+
+```bash
+qlogin -l h_vmem=16G
+
+cat *1.fq.gz > <name>1.fq.gz
+cat *2.fq.gz > <name>2.fq.gz
+
+```
+
+## run FASTQC
+
+```bash
+mkdir analysis/
+mkdir analysis/fastqc
+```
+
+```bash
+#!/bin/bash -f
+#$ -S /bin/bash
+#$ -cwd
+#$ -l h_vmem=36g
+#$ -l h_rt=36:00:00
+#
+. /etc/profile.d/modules.sh
+MODULEPATH=$MODULEPATH:/exports/igmm/software/etc/el7/modules
+
+module load igmm/apps/FastQC
+
+fastqc *.fq.gz --extract -o analysis/fastqc
+```
+
+```bash
+qsub ~/Jon/scripts/FastQC.sh
+```
+
+
+### Bowtie analysis
+
+make file with names of all samples
+
+```bash
+pico files.txt
+
+
+Ctrl_NHS_A
+Ctrl_NHS_B
+Ctrl_15_A
+Ctrl_15_B
+Ctrl_30_A
+Ctrl_30_B
+siU_NHS_A 
+siU_NHS_B
+siU_15_A
+siU_15_B
+siU_30_A
+siU_30_B
+```
+
+run bowtie analysis for each sample
+
+Didn't quality score as it removed reads for HS genes with multiple isoforms
+
+
+```bash
+#!/bin/bash -f
+#$ -S /bin/bash
+#$ -cwd
+#$ -l h_rt=48:00:00
+#$ -l h_vmem=64g
+#
+. /etc/profile.d/modules.sh
+MODULEPATH=$MODULEPATH:/exports/igmm/software/etc/el7/modules
+
+module load igmm/apps/bowtie/2.2.6
+module load igmm/apps/samtools/1.6
+
+fullfile=$1
+file1=$(echo ${fullfile}_1.fq.gz)
+file2=$(echo ${fullfile}_2.fq.gz)
+shortfile="${fullfile:41:2}"
+
+echo ">>>bowtie2 paired reads in: $fullfile "
+echo ">>>bowtie2 paired reads in: $file1 "
+echo ">>>bowtie2 paired reads in: $file2 "
+echo ">>>bowtie2 paired reads in: $shortfile "
+
+# hg38 index
+bowtieindex="/exports/igmm/eddie/gilbert-lab/bowtie2_index/hg38/hg38"
+echo "   bowtie index: $bowtieindex"
+
+bowtie2 -p 16 -x $bowtieindex -1 $file1 -2 $file2 > $shortfile.sam
+
+samtools view -bS $shortfile.sam > $shortfile.bam
+rm $shortfile.sam
+samtools flagstat $shortfile.bam | tee $shortfile.flagstat.txt
+
+samtools sort $shortfile.bam > $shortfile.sorted.bam
+samtools index $shortfile.sorted.bam
+```
+```bash
+while read f; do echo $f; qsub ~/Jon/scripts/bowtie2_paired_hg38.sh $f; done < files.txt
+```
+check mapping
+
+```bash
+find . -name '*.flagstat.txt' | xargs -I % sh -c 'echo %; cat %;'
+```
+
+### generate BWs
+
+
+```bash
+#!/bin/bash -f
+#$ -S /bin/bash
+#$ -cwd
+#$ -pe sharedmem 10
+#$ -l h_rt=24:00:00
+#
+. /etc/profile.d/modules.sh
+MODULEPATH=$MODULEPATH:/exports/igmm/software/etc/el7/modules
+
+module load igmm/apps/bowtie/2.2.6
+module load igmm/apps/samtools/1.6
+module load igmm/apps/BEDTools/2.25.0
+module load igmm/libs/libpng/1.6.18
+module load igmm/apps/ucsc/v326
+module load igmm/apps/python/3.5.2
+
+echo $1
+
+bamCoverage -bl hg38-blacklist.v2.bed -p 4 -r chr14 --binSize 100 --normalizeUsing RPKM -b $1.sorted.bam -o $1.chr14.100.bw
+```
+
+```bash
+while read f; do echo $f; qsub ~/Jon/scripts/???.sh $f; done < files.txt
+```
+
+Move BWs to FTP to view on UCSC
+
+Log on to staging
+
+```bash
+cd /exports/igmm/datastore/ftp/secret/38883888/jon/
+mkdir HS_TT_scale
+cd HS_TT_scale/
+cp ~Jon/TT_HS_July_23_repeat/fq/*bw .
+chmod 755 *.bw
+```
+
+create link for UCSC
+
+```bash
+for f in *.bw; do echo "track type=bigWig name="\""$f"\"" description="\""$f"\"" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/$f";done
+```
+
+Should come up with something like this that can be viewed in UCSC
+```bash
+track type=bigWig name="Ctrl_NHS_A.chr14.100.bw" description="Ctrl_NHS_A.chr14.100.bw" bigDataUrl=ftp://ftp.igmm.ed.ac.uk/secret/38883888/jon/Ctrl_NHS_A.chr14.100.bw
+```
+
+### Normalistation test
+
+I did a 4SU treated dros spike in for normalisation so I counted the reads from each species to generate an initial normalisation factor
+
+The normalisation didn't look good in the end so I didn't use it but here is the script anyway
+
+```bash
+#!/bin/bash -f
+#$ -S /bin/bash
+#$ -cwd
+#$ -l h_vmem=12g
+#
+. /etc/profile.d/modules.sh
+MODULEPATH=$MODULEPATH:/exports/igmm/software/etc/el7/modules
+module load igmm/apps/fastq_screen/0.11.4
+FILE=$1
+echo ">>>fastq_screen: $FILE"
+fastq_screen --conf ~/scripts/fastq_screen.conf $FILE
+```
+```bash
+for f in *.fq.gz; do echo "$f"; qsub ~/scripts/fastq_screen.sh $f; done
+```
+
+### featureCounts
+
+Used featureCounts to count reads from each gene
+
+```bash
+#!/bin/bash -f
+#$ -S /bin/bash
+#$ -cwd
+#$ -l h_rt=48:00:00
+#$ -l h_vmem=64g
+#
+. /etc/profile.d/modules.sh
+MODULEPATH=$MODULEPATH:/exports/igmm/software/etc/el7/modules
+
+module load roslin/subread/1.5.2
+
+featureCounts -a gencode.v44.annotation.gtf -t gene -o counts.txt Ctrl_NHS_A.sorted.bam Ctrl_NHS_B.sorted.bam Ctrl_15_A.sorted.bam Ctrl_15_B.sorted.bam siU_NHS_A.sorted.bam siU_NHS_B.sorted.bam siU_15_A.sorted.bam siU_15_B.sorted.bam
+```
+```bash
+qsub featurecounts.sh
+```
+
+This generates a txt file with the count data that can then be downloaded and assessed in R
+
